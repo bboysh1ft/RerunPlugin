@@ -1,18 +1,20 @@
 package com.artezio.rerunplugin;
 
-import com.intellij.execution.runners.FakeRerunAction;
-import com.intellij.execution.ui.ConsoleView;
-import com.intellij.icons.AllIcons;
+import com.intellij.execution.*;
+import com.intellij.execution.executors.DefaultRunExecutor;
+import com.intellij.execution.impl.RunManagerImpl;
+import com.intellij.execution.ui.RunContentDescriptor;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.CommonShortcuts;
-import com.intellij.openapi.project.DumbAware;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.IconLoader;
+import com.intellij.openapi.util.Key;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
-import com.intellij.openapi.wm.impl.ToolWindowImpl;
 import com.intellij.ui.content.Content;
 
-import javax.swing.*;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * User: Galoshin Evgeniy
@@ -20,62 +22,49 @@ import javax.swing.*;
  */
 public class RerunPlugin extends AnAction {
 
-    public class RerunAction extends AnAction implements DumbAware {
-        private Runnable myRerunAction;
-
-        public RerunAction(JComponent consolePanel) {
-            super("Rerun", "Rerun",
-                    AllIcons.Actions.Restart);
-            registerCustomShortcutSet(CommonShortcuts.getRerun(), consolePanel);
-        }
-
-        @Override
-        public void actionPerformed(AnActionEvent e) {
-            myRerunAction.run();
-        }
-
-        @Override
-        public void update(AnActionEvent e) {
-            e.getPresentation().setVisible(myRerunAction != null);
-        }
-    }
-
     public void actionPerformed(final AnActionEvent e) {
-        ToolWindowImpl toolWindow;
-        ToolWindowManager manager = ToolWindowManager.getInstance(e.getProject());
-        ToolWindow window = manager.getToolWindow("Run");
+        Project project = e.getProject();
+        if (project == null) {
+            return;
+        }
+        ToolWindow window = ToolWindowManager.getInstance(project).getToolWindow("Run");
         if (window == null) {
             return;
         }
-        Content[] contents = window.getContentManager().getContents();
 
-        for (Content content : contents) {
-            content.getComponent().add(new JCheckBox("test checkbox"));
-            if (content instanceof ConsoleView) {
-                content.getComponent().add(new JCheckBox("test checkbox"));
-                continue;
-            }
-            if (content instanceof JComponent) {
-                ((JComponent) content).add(new JCheckBox("test checkbox"));
-                continue;
+        for (final Content content : window.getContentManager().getContents()) {
+            final RunManagerImpl runManager = (RunManagerImpl) RunManager.getInstance(project);
+            final Collection<RunnerAndConfigurationSettings> allConfigurations = runManager.getSortedConfigurations();
+
+            for (RunnerAndConfigurationSettings runConfiguration : allConfigurations) {
+                System.out.println(runConfiguration.getName());
+
+                ExecutionManager executionManager = ExecutionManager.getInstance(project);
+
+                RunContentDescriptor descriptor = content.getUserData(new Key<RunContentDescriptor>("Descriptor"));
+                RunnerAndConfigurationSettings configurationByName = runManager.findConfigurationByName(runConfiguration.getName());
+                if (configurationByName == null) {
+                    continue;
+                }
+                List<ExecutionTarget> targets = ExecutionTargetManager.getTargetsFor(project, configurationByName);
+
+                for (ExecutionTarget target : targets) {
+                    executionManager.restartRunProfile(project,
+                            DefaultRunExecutor.getRunExecutorInstance(),
+                            target,
+                            configurationByName,
+                            descriptor);
+                }
             }
         }
+    }
 
+    private void turnOffCheckbox(Content content) {
+        content.setIcon(IconLoader.getIcon("/resources/images/checkbox_0.png"));
+    }
 
-//        window.getComponent()
-
-
-        FakeRerunAction fakeRerunAction = new FakeRerunAction();
-        fakeRerunAction.actionPerformed(e);
-
-//        ExecutionManager.getInstance(e.getProject()).restartRunProfile(e.getProject(),                                 );
-
-        window.show(new Runnable() {
-            @Override
-            public void run() {
-                //nothing
-            }
-        });
+    private void turnOnCheckbox(Content content) {
+        content.setIcon(IconLoader.getIcon("/resources/images/checkbox_1.png"));
     }
 }
 
