@@ -1,14 +1,14 @@
 package com.artezio.rerunplugin;
 
-import com.intellij.execution.*;
-import com.intellij.execution.executors.DefaultRunExecutor;
+import com.intellij.execution.ExecutionManager;
+import com.intellij.execution.RunManager;
+import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.impl.RunManagerImpl;
 import com.intellij.execution.ui.RunContentDescriptor;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.IconLoader;
-import com.intellij.openapi.util.Key;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.content.Content;
@@ -41,19 +41,9 @@ public class RerunPlugin extends AnAction {
 
                 ExecutionManager executionManager = ExecutionManager.getInstance(project);
 
-                RunContentDescriptor descriptor = content.getUserData(new Key<RunContentDescriptor>("Descriptor"));
-                RunnerAndConfigurationSettings configurationByName = runManager.findConfigurationByName(runConfiguration.getName());
-                if (configurationByName == null) {
-                    continue;
-                }
-                List<ExecutionTarget> targets = ExecutionTargetManager.getTargetsFor(project, configurationByName);
-
-                for (ExecutionTarget target : targets) {
-                    executionManager.restartRunProfile(project,
-                            DefaultRunExecutor.getRunExecutorInstance(),
-                            target,
-                            configurationByName,
-                            descriptor);
+                List<RunContentDescriptor> descriptors = executionManager.getContentManager().getAllDescriptors();
+                for (RunContentDescriptor descriptor : descriptors) {
+                    descriptor.getRestarter().run();
                 }
             }
         }
